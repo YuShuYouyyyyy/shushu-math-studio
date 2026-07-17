@@ -15,9 +15,7 @@ import {
   Split,
   Sigma,
   LineChart,
-  PanelLeftOpen,
-  PanelRightOpen,
-  GripVertical
+  PanelLeftOpen
 } from 'lucide';
 import { unwrapPlaceholders } from './math-utils.js';
 import { evaluateCalculus, isCalculusExpression } from './symbolic-calculus.js';
@@ -94,7 +92,13 @@ const keyboardLayouts = {
   '希腊': [
     ...['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'theta', 'lambda', 'mu', 'pi', 'rho', 'sigma', 'tau', 'phi', 'omega'].map(name => ({ latex: `\\${name}`, insert: `\\${name}` })),
     ...['Gamma', 'Delta', 'Theta', 'Lambda', 'Sigma', 'Phi', 'Omega'].map(name => ({ latex: `\\${name}`, insert: `\\${name}` }))
-  ]
+  ],
+  '结构': templates.map(item => ({
+    latex: item.preview,
+    insert: item.insert,
+    name: item.name,
+    template: true
+  }))
 };
 
 MathfieldElement.fontsDirectory = `${import.meta.env.BASE_URL}mathlive/fonts`;
@@ -104,7 +108,7 @@ MathfieldElement.locale = 'zh-cn';
 const app = document.querySelector('#app');
 app.innerHTML = `
   <header class="topbar">
-    <a class="brand" href="#" aria-label="数数首页"><span class="brand-mark">悠</span><span>数数</span></a>
+    <a class="brand" href="#" aria-label="悠的数学助手首页"><span class="brand-mark">悠</span><span>悠的数学助手</span></a>
     <nav class="top-actions" aria-label="页面操作">
       <button class="icon-button" id="historyButton" title="计算记录" aria-label="计算记录"><i data-lucide="history"></i></button>
       <button class="ai-button" id="aiButton"><i data-lucide="sparkles"></i><span>AI 解题</span></button>
@@ -132,7 +136,6 @@ app.innerHTML = `
           <div><p class="eyebrow">表达式</p><h2 id="editor-title">数学输入区</h2></div>
         </div>
         <div class="editor-actions">
-          <button class="icon-button panel-toggle" id="openTemplatePanel" aria-label="展开结构模板" title="结构模板"><i data-lucide="panel-right-open"></i></button>
           <button class="icon-button" id="undoButton" title="撤销" aria-label="撤销"><i data-lucide="undo-2"></i></button>
           <button class="icon-button" id="redoButton" title="重做" aria-label="重做"><i data-lucide="redo-2"></i></button>
           <button class="icon-button danger" id="clearButton" title="清空" aria-label="清空"><i data-lucide="delete"></i></button>
@@ -167,20 +170,6 @@ app.innerHTML = `
       </section>
     </section>
 
-    <section class="template-panel side-panel side-panel-right" id="templatePanel" aria-labelledby="template-title" aria-hidden="true">
-      <div class="resize-handle" id="templateResizeHandle" title="拖动调整宽度"><i data-lucide="grip-vertical"></i></div>
-      <div class="panel-heading">
-        <div><p class="eyebrow">结构模板</p><h2 id="template-title">插入公式结构</h2></div>
-        <div class="panel-heading-actions"><span class="count">${templates.length}</span><button class="icon-button" id="closeTemplatePanel" aria-label="收起结构模板" title="收起"><i data-lucide="x"></i></button></div>
-      </div>
-      <div class="tabs" role="tablist">
-        <button class="tab active" data-group="全部">全部</button>
-        <button class="tab" data-group="常用">常用</button>
-        <button class="tab" data-group="函数">函数</button>
-        <button class="tab" data-group="高级">高级</button>
-      </div>
-      <div class="template-grid" id="templateGrid"></div>
-    </section>
   </main>
   <div class="side-scrim" id="sideScrim"></div>
 
@@ -199,27 +188,22 @@ app.innerHTML = `
   <div class="toast" id="toast" role="status"></div>
 `;
 
-createIcons({ icons: { Calculator, Delete, Undo2, Redo2, Copy, Sparkles, Keyboard, History, X, Equal, Split, Sigma, LineChart, PanelLeftOpen, PanelRightOpen, GripVertical } });
+createIcons({ icons: { Calculator, Delete, Undo2, Redo2, Copy, Sparkles, Keyboard, History, X, Equal, Split, Sigma, LineChart, PanelLeftOpen } });
 
 const ce = new ComputeEngine();
 const mathfield = document.querySelector('#mathField');
 const resultMath = document.querySelector('#resultMath');
 const resultDecimal = document.querySelector('#resultDecimal');
 const resultEmpty = document.querySelector('#resultEmpty');
-const templateGrid = document.querySelector('#templateGrid');
 const keyboardGrid = document.querySelector('#keyboardGrid');
 const keyboardTabs = document.querySelector('#keyboardTabs');
 const customKeyboard = document.querySelector('#customKeyboard');
 const toolPanel = document.querySelector('#toolPanel');
-const templatePanel = document.querySelector('#templatePanel');
 const sideScrim = document.querySelector('#sideScrim');
-const workspace = document.querySelector('.workspace');
-const mathSurface = document.querySelector('.math-surface');
 const toast = document.querySelector('#toast');
 const history = [];
 let lastResult = '';
 let activeKeyboardLayout = '基础';
-let suppressTemplateClick = false;
 
 mathfield.smartFence = true;
 mathfield.smartMode = true;
@@ -227,32 +211,28 @@ mathfield.defaultMode = 'math';
 mathfield.mathVirtualKeyboardPolicy = 'manual';
 mathfield.menuItems = [];
 
-function renderTemplates(group = '全部') {
-  const items = group === '全部' ? templates : templates.filter(item => item.group === group);
-  templateGrid.innerHTML = items.map(item => `
-    <button class="template-card" data-template-index="${templates.indexOf(item)}">
-      <math-field class="template-preview" read-only tabindex="-1" aria-hidden="true">${item.preview}</math-field>
-      <span>${item.name}</span>
-    </button>
-  `).join('');
-  templateGrid.querySelectorAll('.template-card').forEach(card => {
-    card.addEventListener('click', () => {
-      if (suppressTemplateClick) return;
-      insertLatex(templates[Number(card.dataset.templateIndex)].insert);
-    });
-  });
-}
-
 function renderKeyboard(layout = activeKeyboardLayout) {
   activeKeyboardLayout = layout;
   keyboardTabs.innerHTML = Object.keys(keyboardLayouts).map(name => `
     <button class="keyboard-tab ${name === layout ? 'active' : ''}" data-layout="${name}" role="tab" aria-selected="${name === layout}">${name}</button>
   `).join('');
-  keyboardGrid.innerHTML = keyboardLayouts[layout].map((key, index) => `
-    <button class="math-key" data-key-index="${index}" aria-label="插入 ${key.text || key.latex}">
+  const keys = keyboardLayouts[layout];
+  const renderKey = (key, index) => `
+    <button class="math-key${key.template ? ' structure-key' : ''}" data-key-index="${index}" aria-label="插入 ${key.name || key.text || key.latex}">
       ${key.text || convertLatexToMarkup(key.latex)}
+      ${key.template ? `<span>${key.name}</span>` : ''}
     </button>
-  `).join('');
+  `;
+  if (layout === '基础') {
+    keyboardGrid.className = 'keyboard-grid basic-keyboard-grid';
+    keyboardGrid.innerHTML = `
+      <div class="number-pad">${keys.slice(0, 10).map(renderKey).join('')}</div>
+      <div class="operator-pad">${keys.slice(10).map((key, index) => renderKey(key, index + 10)).join('')}</div>
+    `;
+  } else {
+    keyboardGrid.className = `keyboard-grid${layout === '结构' ? ' structure-keyboard-grid' : ''}`;
+    keyboardGrid.innerHTML = keys.map(renderKey).join('');
+  }
 }
 
 function showToast(message) {
@@ -372,82 +352,13 @@ function toggleDrawer(open) {
   document.querySelector('#scrim').classList.toggle('visible', open);
 }
 
-function setSidePanel(panel, open) {
-  if (panel === templatePanel) {
-    if (open) {
-      toolPanel.classList.remove('open');
-      toolPanel.setAttribute('aria-hidden', 'true');
-    }
-    templatePanel.classList.toggle('open', open);
-    templatePanel.setAttribute('aria-hidden', String(!open));
-    workspace.classList.toggle('template-open', open);
-    sideScrim.classList.remove('visible');
-    return;
-  }
-
-  if (open) {
-    templatePanel.classList.remove('open');
-    templatePanel.setAttribute('aria-hidden', 'true');
-    workspace.classList.remove('template-open');
-  }
+function setToolPanel(open) {
   toolPanel.classList.toggle('open', open);
   toolPanel.setAttribute('aria-hidden', String(!open));
   sideScrim.classList.toggle('visible', open);
 }
 
-renderTemplates();
 renderKeyboard();
-
-let templateDrag = null;
-templateGrid.addEventListener('pointerdown', event => {
-  const card = event.target.closest('.template-card');
-  if (!card || event.button !== 0) return;
-  templateDrag = {
-    card,
-    index: Number(card.dataset.templateIndex),
-    startX: event.clientX,
-    startY: event.clientY,
-    ghost: null
-  };
-});
-
-document.addEventListener('pointermove', event => {
-  if (!templateDrag || resizingTemplatePanel) return;
-  const distance = Math.hypot(event.clientX - templateDrag.startX, event.clientY - templateDrag.startY);
-  if (!templateDrag.ghost && distance > 6) {
-    templateDrag.ghost = templateDrag.card.cloneNode(true);
-    templateDrag.ghost.className = 'template-card drag-ghost';
-    document.body.appendChild(templateDrag.ghost);
-    templateDrag.card.classList.add('dragging');
-  }
-  if (!templateDrag.ghost) return;
-  event.preventDefault();
-  templateDrag.ghost.style.left = `${event.clientX + 12}px`;
-  templateDrag.ghost.style.top = `${event.clientY + 12}px`;
-  const overInput = document.elementFromPoint(event.clientX, event.clientY)?.closest('.math-surface');
-  mathSurface.classList.toggle('drop-ready', Boolean(overInput));
-});
-
-document.addEventListener('pointerup', event => {
-  if (!templateDrag) return;
-  if (templateDrag.ghost) {
-    const overInput = document.elementFromPoint(event.clientX, event.clientY)?.closest('.math-surface');
-    if (overInput && templates[templateDrag.index]) insertLatex(templates[templateDrag.index].insert);
-    suppressTemplateClick = true;
-    window.setTimeout(() => { suppressTemplateClick = false; }, 0);
-    templateDrag.ghost.remove();
-    templateDrag.card.classList.remove('dragging');
-    mathSurface.classList.remove('drop-ready');
-  }
-  templateDrag = null;
-});
-
-document.querySelector('.tabs').addEventListener('click', event => {
-  const tab = event.target.closest('.tab');
-  if (!tab) return;
-  document.querySelectorAll('.tab').forEach(item => item.classList.toggle('active', item === tab));
-  renderTemplates(tab.dataset.group);
-});
 
 keyboardTabs.addEventListener('click', event => {
   const tab = event.target.closest('[data-layout]');
@@ -472,34 +383,9 @@ document.querySelector('.tool-list').addEventListener('click', event => {
   if (tool) showToast(`${tool.dataset.tool}正在开发中`);
 });
 
-document.querySelector('#openToolPanel').addEventListener('click', () => setSidePanel(toolPanel, true));
-document.querySelector('#closeToolPanel').addEventListener('click', () => setSidePanel(toolPanel, false));
-document.querySelector('#openTemplatePanel').addEventListener('click', () => setSidePanel(templatePanel, true));
-document.querySelector('#closeTemplatePanel').addEventListener('click', () => setSidePanel(templatePanel, false));
-sideScrim.addEventListener('click', () => {
-  setSidePanel(toolPanel, false);
-  setSidePanel(templatePanel, false);
-});
-
-let resizingTemplatePanel = false;
-let resizeStartX = 0;
-let resizeStartWidth = 0;
-document.querySelector('#templateResizeHandle').addEventListener('pointerdown', event => {
-  resizingTemplatePanel = true;
-  resizeStartX = event.clientX;
-  resizeStartWidth = templatePanel.getBoundingClientRect().width;
-  document.body.classList.add('resizing-panel');
-  event.currentTarget.setPointerCapture(event.pointerId);
-});
-document.addEventListener('pointermove', event => {
-  if (!resizingTemplatePanel) return;
-  const width = Math.min(520, Math.max(280, resizeStartWidth + resizeStartX - event.clientX));
-  workspace.style.setProperty('--template-width', `${width}px`);
-});
-document.addEventListener('pointerup', () => {
-  resizingTemplatePanel = false;
-  document.body.classList.remove('resizing-panel');
-});
+document.querySelector('#openToolPanel').addEventListener('click', () => setToolPanel(true));
+document.querySelector('#closeToolPanel').addEventListener('click', () => setToolPanel(false));
+sideScrim.addEventListener('click', () => setToolPanel(false));
 
 document.querySelector('#calculateButton').addEventListener('click', calculate);
 document.querySelector('#clearButton').addEventListener('click', () => { mathfield.value = ''; mathfield.focus(); });
