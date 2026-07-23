@@ -152,24 +152,23 @@ dialog h2 { font-size: 20px; }
 dialog p { color: var(--muted); line-height: 1.7; font-size: 14px; }
 dialog > button { min-width: 120px; min-height: 40px; border: 0; border-radius: 6px; color: white; background: var(--green); cursor: pointer; }
 .tool-dialog {
-  position: fixed;
-  z-index: 20;
-  inset: 64px 0 0;
-  width: 100%;
+  position: relative;
+  width: min(980px, calc(100% - 32px));
   max-height: none;
+  margin: 28px auto 56px;
   padding: 0;
   border: 0;
-  border-radius: 0;
+  border-radius: 8px;
   text-align: left;
-  overflow-y: auto;
-  background: #f4f7f5;
-  box-shadow: none;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(32, 60, 44, .06);
 }
-.tool-keyboard { width: min(900px, calc(100% - 32px)); margin: 0 auto 12px; border-width: 0 0 1px; border-radius: 0; }
+.tool-keyboard { width: 100%; margin: 12px 0 16px; border-radius: 7px; }
 .tool-keyboard .keyboard-grid { max-height: 245px; overflow-y: auto; }
-.tool-dialog-header { min-height: 72px; padding: 14px max(20px, calc((100% - 900px) / 2)); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; background: #fff; }
+.tool-dialog-header { min-height: 72px; padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; background: #fff; }
 .tool-dialog-header h2 { font-size: 20px; }
-.tool-view { width: min(900px, calc(100% - 32px)); margin: 0 auto; padding: 20px 0 36px; }
+.tool-view { width: 100%; padding: 20px 24px 36px; background: #fff; }
 .equation-controls { margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .field-label { color: #344139; font-size: 13px; font-weight: 800; }
 #equationVariable { min-width: 88px; height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: 5px; background: white; color: var(--ink); }
@@ -243,11 +242,11 @@ dialog > button { min-width: 120px; min-height: 40px; border: 0; border-radius: 
   .structure-keyboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .math-key { height: 41px; }
   .result-area { min-height: 112px; }
-  .tool-dialog { inset: 60px 0 0; width: 100%; max-height: none; }
+  .tool-dialog { width: calc(100% - 18px); max-height: none; margin: 10px auto 36px; }
   .tool-dialog-header { min-height: 62px; padding: 10px 13px; }
-  .tool-keyboard { width: calc(100% - 14px); }
+  .tool-keyboard { width: 100%; }
   .tool-keyboard .keyboard-grid { max-height: 220px; }
-  .tool-view { width: calc(100% - 14px); max-height: none; padding: 14px 0 28px; }
+  .tool-view { width: 100%; max-height: none; padding: 14px 12px 28px; }
   .tool-math-input { min-height: 78px; padding: 14px 10px; font-size: 24px; }
   .graph-function-row { grid-template-columns: 9px 26px minmax(0, 1fr) 34px; gap: 5px; }
   .graph-function-row math-field { font-size: 18px; }

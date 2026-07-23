@@ -266,6 +266,7 @@ const customKeyboard = document.querySelector('#customKeyboard');
 const toolKeyboardGrid = document.querySelector('#toolKeyboardGrid');
 const toolKeyboardTabs = document.querySelector('#toolKeyboardTabs');
 const toolKeyboard = document.querySelector('#toolKeyboard');
+const workspace = document.querySelector('.workspace');
 const toolPanel = document.querySelector('#toolPanel');
 const sideScrim = document.querySelector('#sideScrim');
 const toast = document.querySelector('#toast');
@@ -278,6 +279,8 @@ let lastResult = '';
 let activeKeyboardLayout = '基础';
 let graphFunctionCount = 0;
 let activeMathfield = mathfield;
+
+app.appendChild(toolPanel);
 
 mathfield.smartFence = true;
 mathfield.smartMode = true;
@@ -513,6 +516,7 @@ function openTool(name) {
 
   if (name === 'calculator') {
     setActiveTool(name);
+    workspace.hidden = false;
     toolDialog.hidden = true;
     document.querySelector('#editor-title').textContent = '计算器';
     window.requestAnimationFrame(() => mathfield.focus());
@@ -541,6 +545,7 @@ function openTool(name) {
     return;
   }
 
+  workspace.hidden = true;
   toolDialog.hidden = false;
   window.requestAnimationFrame(() => {
     if (name === '解方程') equationField.focus();
