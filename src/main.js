@@ -15,7 +15,7 @@ import {
   Split,
   Sigma,
   LineChart,
-  PanelRightOpen,
+  PanelLeftOpen,
   ZoomIn,
   ZoomOut,
   RotateCcw,
@@ -140,7 +140,7 @@ app.innerHTML = `
     <section class="editor-panel" aria-labelledby="editor-title">
       <div class="editor-heading">
         <div class="editor-title-group">
-          <button class="icon-button panel-toggle" id="openToolPanel" aria-label="展开数学工具" title="数学工具"><i data-lucide="panel-right-open"></i></button>
+          <button class="icon-button panel-toggle" id="openToolPanel" aria-label="展开数学工具" title="数学工具"><i data-lucide="panel-left-open"></i></button>
           <div><p class="eyebrow">数学工具</p><h2 id="editor-title">计算器</h2></div>
         </div>
         <div class="editor-actions">
@@ -194,10 +194,10 @@ app.innerHTML = `
     <button id="closeAiDialog">知道了</button>
   </dialog>
 
-  <dialog class="tool-dialog" id="toolDialog">
+  <section class="tool-dialog tool-page" id="toolDialog" hidden>
     <div class="tool-dialog-header">
       <div><p class="eyebrow">数学工具</p><h2 id="toolDialogTitle">解方程</h2></div>
-      <button class="icon-button" id="closeToolDialog" aria-label="关闭数学工具" title="关闭"><i data-lucide="x"></i></button>
+      <button class="icon-button" id="openToolPanelFromTool" aria-label="展开数学工具" title="数学工具"><i data-lucide="panel-left-open"></i></button>
     </div>
 
     <section class="custom-keyboard tool-keyboard" id="toolKeyboard" aria-label="数学键盘">
@@ -249,11 +249,11 @@ app.innerHTML = `
       </div>
       <p class="graph-status" id="graphStatus" aria-live="polite">输入函数后点击绘制，可拖动图像并缩放</p>
     </section>
-  </dialog>
+  </section>
   <div class="toast" id="toast" role="status"></div>
 `;
 
-createIcons({ icons: { Calculator, Delete, Undo2, Redo2, Copy, Sparkles, Keyboard, History, X, Equal, Split, Sigma, LineChart, PanelRightOpen, ZoomIn, ZoomOut, RotateCcw, Plus, Trash2 } });
+createIcons({ icons: { Calculator, Delete, Undo2, Redo2, Copy, Sparkles, Keyboard, History, X, Equal, Split, Sigma, LineChart, PanelLeftOpen, ZoomIn, ZoomOut, RotateCcw, Plus, Trash2 } });
 
 const ce = new ComputeEngine();
 const mathfield = document.querySelector('#mathField');
@@ -265,6 +265,7 @@ const keyboardTabs = document.querySelector('#keyboardTabs');
 const customKeyboard = document.querySelector('#customKeyboard');
 const toolKeyboardGrid = document.querySelector('#toolKeyboardGrid');
 const toolKeyboardTabs = document.querySelector('#toolKeyboardTabs');
+const toolKeyboard = document.querySelector('#toolKeyboard');
 const toolPanel = document.querySelector('#toolPanel');
 const sideScrim = document.querySelector('#sideScrim');
 const toast = document.querySelector('#toast');
@@ -512,7 +513,7 @@ function openTool(name) {
 
   if (name === 'calculator') {
     setActiveTool(name);
-    if (toolDialog.open) toolDialog.close();
+    toolDialog.hidden = true;
     document.querySelector('#editor-title').textContent = '计算器';
     window.requestAnimationFrame(() => mathfield.focus());
     return;
@@ -525,6 +526,7 @@ function openTool(name) {
     equationView.hidden = false;
     graphView.hidden = true;
     if (currentLatex) equationField.value = currentLatex;
+    document.querySelector('.tool-hint').before(toolKeyboard);
   } else if (name === '函数图') {
     setActiveTool(name);
     document.querySelector('#toolDialogTitle').textContent = '函数图像';
@@ -533,12 +535,13 @@ function openTool(name) {
     if (graphFunctionCount === 0) addGraphFunction(currentLatex);
     const firstGraphField = graphFunctionList.querySelector('math-field');
     if (firstGraphField) activeMathfield = firstGraphField;
+    graphFunctionList.after(toolKeyboard);
   } else {
     showToast(`${name}正在开发中`);
     return;
   }
 
-  toolDialog.showModal();
+  toolDialog.hidden = false;
   window.requestAnimationFrame(() => {
     if (name === '解方程') equationField.focus();
     else graphController.draw();
@@ -638,7 +641,7 @@ document.querySelector('.tool-list').addEventListener('click', event => {
   if (tool) openTool(tool.dataset.tool);
 });
 
-document.querySelector('#closeToolDialog').addEventListener('click', () => toolDialog.close());
+document.querySelector('#openToolPanelFromTool').addEventListener('click', () => setToolPanel(true));
 document.querySelector('#solveEquationButton').addEventListener('click', solveCurrentEquation);
 equationField.addEventListener('keydown', event => {
   if (event.key === 'Enter') { event.preventDefault(); solveCurrentEquation(); }

@@ -67,7 +67,7 @@ h1, h2 { font-size: 20px; }
   box-shadow: 0 0 32px rgba(20, 40, 29, .14);
   transition: transform .24s ease;
 }
-.side-panel-left { right: 0; width: 270px; transform: translateX(105%); border-left: 1px solid var(--line); }
+.side-panel-left { left: 0; width: 270px; transform: translateX(-105%); border-right: 1px solid var(--line); }
 .side-panel.open { transform: translateX(0); }
 .side-scrim { display: none; position: fixed; z-index: 24; inset: 64px 0 0; background: rgba(25, 37, 30, .22); }
 .side-scrim.visible { display: block; }
@@ -152,18 +152,24 @@ dialog h2 { font-size: 20px; }
 dialog p { color: var(--muted); line-height: 1.7; font-size: 14px; }
 dialog > button { min-width: 120px; min-height: 40px; border: 0; border-radius: 6px; color: white; background: var(--green); cursor: pointer; }
 .tool-dialog {
-  width: min(900px, calc(100% - 32px));
-  max-height: calc(100vh - 32px);
+  position: fixed;
+  z-index: 20;
+  inset: 64px 0 0;
+  width: 100%;
+  max-height: none;
   padding: 0;
+  border: 0;
+  border-radius: 0;
   text-align: left;
-  overflow: hidden;
+  overflow-y: auto;
+  background: #f4f7f5;
+  box-shadow: none;
 }
-.tool-dialog::backdrop { background: rgba(244, 247, 245, .98); }
-.tool-keyboard { margin: 0; border-width: 0 0 1px; border-radius: 0; }
+.tool-keyboard { width: min(900px, calc(100% - 32px)); margin: 0 auto 12px; border-width: 0 0 1px; border-radius: 0; }
 .tool-keyboard .keyboard-grid { max-height: 245px; overflow-y: auto; }
-.tool-dialog-header { min-height: 72px; padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; background: #fff; }
+.tool-dialog-header { min-height: 72px; padding: 14px max(20px, calc((100% - 900px) / 2)); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; background: #fff; }
 .tool-dialog-header h2 { font-size: 20px; }
-.tool-view { max-height: calc(100vh - 104px); padding: 20px; overflow-y: auto; }
+.tool-view { width: min(900px, calc(100% - 32px)); margin: 0 auto; padding: 20px 0 36px; }
 .equation-controls { margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .field-label { color: #344139; font-size: 13px; font-weight: 800; }
 #equationVariable { min-width: 88px; height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: 5px; background: white; color: var(--ink); }
@@ -237,10 +243,11 @@ dialog > button { min-width: 120px; min-height: 40px; border: 0; border-radius: 
   .structure-keyboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .math-key { height: 41px; }
   .result-area { min-height: 112px; }
-  .tool-dialog { width: calc(100% - 14px); max-height: calc(100vh - 14px); }
+  .tool-dialog { inset: 60px 0 0; width: 100%; max-height: none; }
   .tool-dialog-header { min-height: 62px; padding: 10px 13px; }
+  .tool-keyboard { width: calc(100% - 14px); }
   .tool-keyboard .keyboard-grid { max-height: 220px; }
-  .tool-view { max-height: calc(100vh - 76px); padding: 14px 12px; }
+  .tool-view { width: calc(100% - 14px); max-height: none; padding: 14px 0 28px; }
   .tool-math-input { min-height: 78px; padding: 14px 10px; font-size: 24px; }
   .graph-function-row { grid-template-columns: 9px 26px minmax(0, 1fr) 34px; gap: 5px; }
   .graph-function-row math-field { font-size: 18px; }
