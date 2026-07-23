@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@cortex-js/compute-engine": "^0.30.2",
+    "d3-contour": "4.0.2",
     "lucide": "^0.468.0",
     "mathlive": "^0.104.2",
     "nerdamer": "^1.1.13"

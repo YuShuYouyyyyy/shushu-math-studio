@@ -28,7 +28,7 @@ import { evaluateIntervalSet } from './interval-sets.js';
 import { solveEquation } from './equation-solver.js';
 import { factorExpression } from './factorization.js';
 import { analyzeFunction } from './function-analysis.js';
-import { compileGraphFunction, createGraphController, GRAPH_COLORS } from './function-graph.js';
+import { compileGraphExpression, createGraphController, GRAPH_COLORS } from './function-graph.js';
 import './style.css';
 
 const templates = [
@@ -245,7 +245,7 @@ app.innerHTML = `
 
     <section class="tool-view graph-tool-view" id="graphToolView" hidden>
       <div class="graph-input-heading">
-        <span class="field-label">函数表达式</span>
+        <span class="field-label">函数或方程</span>
         <button class="secondary-button" id="addGraphFunction"><i data-lucide="plus"></i><span>添加函数</span></button>
       </div>
       <div class="graph-function-list" id="graphFunctionList"></div>
@@ -508,7 +508,7 @@ const graphController = createGraphController(document.querySelector('#functionG
 function renderGraphAnalysis() {
   const container = document.querySelector('#graphDomainRange');
   container.innerHTML = currentGraphEntries.map((entry, index) => {
-    const analysis = analyzeFunction(entry.latex, ce, entry.evaluate, currentGraphRange);
+    const analysis = analyzeFunction(entry.latex, ce, entry.evaluate, currentGraphRange, entry.mode);
     return `
       <div class="graph-analysis-row">
         <span class="graph-swatch" style="--graph-color:${entry.color}" aria-hidden="true"></span>
@@ -533,8 +533,8 @@ function addGraphFunction(value = '') {
   row.dataset.color = color;
   row.innerHTML = `
     <span class="graph-swatch" style="--graph-color:${color}" aria-hidden="true"></span>
-    <span class="graph-y">y =</span>
-    <math-field id="${id}" aria-label="函数表达式"></math-field>
+    <span class="graph-y">式</span>
+    <math-field id="${id}" aria-label="函数或方程"></math-field>
     <button class="icon-button remove-graph-function" aria-label="删除这个函数" title="删除"><i data-lucide="trash-2"></i></button>
   `;
   graphFunctionList.appendChild(row);
@@ -656,8 +656,8 @@ function drawCurrentFunctions() {
   try {
     rows.forEach(row => {
       const latex = unwrapPlaceholders(row.querySelector('math-field').getValue('latex-expanded').trim());
-      const evaluate = compileGraphFunction(latex, ce);
-      if (evaluate) compiled.push({ evaluate, color: row.dataset.color, latex });
+      const graphExpression = compileGraphExpression(latex, ce);
+      if (graphExpression) compiled.push({ ...graphExpression, color: row.dataset.color, latex });
     });
     if (compiled.length === 0) throw new Error('请先输入至少一个函数');
     currentGraphEntries = compiled;

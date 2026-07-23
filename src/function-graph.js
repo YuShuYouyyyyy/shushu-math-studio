@@ -1,3 +1,5 @@
+import { contours } from 'd3-contour';
+
 export const GRAPH_COLORS = ['#18794e', '#b14c39', '#3568a8', '#8a5a9b'];
 
 export function compileGraphFunction(latex, computeEngine) {
@@ -13,6 +15,50 @@ export function compileGraphFunction(latex, computeEngine) {
     const value = Number(evaluate({ x }));
     return Number.isFinite(value) ? value : NaN;
   };
+}
+
+export function compileGraphExpression(latex, computeEngine) {
+  const source = latex.trim();
+  if (!source) return null;
+  const expression = computeEngine.parse(source);
+  if (!expression.isValid) throw new Error('无法识别函数或方程');
+
+  if (expression.json?.[0] === 'Equal') {
+    const left = computeEngine.box(expression.json[1]);
+    const right = computeEngine.box(expression.json[2]);
+    if (expression.json[1] === 'y' && !right.symbols.includes('y')) {
+      return { mode: 'explicit', evaluate: compileGraphFunction(right.latex, computeEngine) };
+    }
+    if (expression.json[2] === 'y' && !left.symbols.includes('y')) {
+      return { mode: 'explicit', evaluate: compileGraphFunction(left.latex, computeEngine) };
+    }
+    const difference = computeEngine.box(['Subtract', expression.json[1], expression.json[2]]).simplify();
+    const unsupported = difference.symbols.filter(symbol => symbol !== 'x' && symbol !== 'y');
+    if (unsupported.length) throw new Error(`方程中包含未赋值的字母 ${unsupported[0]}`);
+    const evaluate = difference.compile();
+    return {
+      mode: 'implicit',
+      evaluate: (x, y) => {
+        const value = Number(evaluate({ x, y }));
+        return Number.isFinite(value) ? value : NaN;
+      }
+    };
+  }
+
+  if (expression.symbols.includes('y')) {
+    const unsupported = expression.symbols.filter(symbol => symbol !== 'x' && symbol !== 'y');
+    if (unsupported.length) throw new Error(`表达式中包含未赋值的字母 ${unsupported[0]}`);
+    const evaluate = expression.compile();
+    return {
+      mode: 'implicit',
+      evaluate: (x, y) => {
+        const value = Number(evaluate({ x, y }));
+        return Number.isFinite(value) ? value : NaN;
+      }
+    };
+  }
+
+  return { mode: 'explicit', evaluate: compileGraphFunction(source, computeEngine) };
 }
 
 function niceStep(rawStep) {
@@ -105,7 +151,11 @@ export function createGraphController(canvas, onRangeChange = () => {}) {
   }
 
   function drawFunctions(width, height) {
-    state.functions.forEach(({ evaluate, color }) => {
+    state.functions.forEach(({ evaluate, color, mode }) => {
+      if (mode === 'implicit') {
+        drawImplicitCurve(evaluate, color, width, height);
+        return;
+      }
       context.beginPath();
       context.strokeStyle = color;
       context.lineWidth = 2.3;
@@ -129,6 +179,42 @@ export function createGraphController(canvas, onRangeChange = () => {}) {
       }
       context.stroke();
     });
+  }
+
+  function drawImplicitCurve(evaluate, color, width, height) {
+    const spacing = Math.max(3, Math.round(Math.min(width, height) / 120));
+    const columns = Math.floor(width / spacing) + 1;
+    const rows = Math.floor(height / spacing) + 1;
+    const values = new Array(columns * rows);
+
+    for (let row = 0; row < rows; row += 1) {
+      for (let column = 0; column < columns; column += 1) {
+        const screenX = column * spacing;
+        const screenY = row * spacing;
+        values[row * columns + column] = evaluate(
+          toWorldX(screenX, width),
+          toWorldY(screenY, height)
+        );
+      }
+    }
+
+    const contour = contours().size([columns, rows]).thresholds([0])(values)[0];
+    if (!contour) return;
+    context.beginPath();
+    contour.coordinates.forEach(polygon => {
+      polygon.forEach(ring => {
+        ring.forEach((point, index) => {
+          const x = point[0] * spacing;
+          const y = point[1] * spacing;
+          if (index === 0) context.moveTo(x, y);
+          else context.lineTo(x, y);
+        });
+      });
+    });
+    context.strokeStyle = color;
+    context.lineWidth = 2.3;
+    context.lineJoin = 'round';
+    context.stroke();
   }
 
   function draw() {

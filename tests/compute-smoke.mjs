@@ -3,7 +3,7 @@ import { unwrapPlaceholders } from '../src/math-utils.js';
 import { evaluateCalculus } from '../src/symbolic-calculus.js';
 import { evaluateIntervalSet } from '../src/interval-sets.js';
 import { solveEquation } from '../src/equation-solver.js';
-import { compileGraphFunction } from '../src/function-graph.js';
+import { compileGraphFunction, compileGraphExpression } from '../src/function-graph.js';
 import { factorExpression } from '../src/factorization.js';
 import { analyzeFunction } from '../src/function-analysis.js';
 
@@ -112,5 +112,10 @@ const squareAnalysis = analyzeFunction(String.raw`x^2`, ce, squareEvaluate, { xM
 const analysisPassed = squareAnalysis.domain === '(-∞, +∞)' && squareAnalysis.range === '[0, +∞)';
 console.log(`${analysisPassed ? 'PASS' : 'FAIL'} analyze x^2 domain/range`);
 failed ||= !analysisPassed;
+
+const circle = compileGraphExpression(String.raw`x^2+y^2=4`, ce);
+const circlePassed = circle.mode === 'implicit' && Math.abs(circle.evaluate(2, 0)) < 1e-10 && Math.abs(circle.evaluate(0, 1)) > 0;
+console.log(`${circlePassed ? 'PASS' : 'FAIL'} implicit circle x^2+y^2=4`);
+failed ||= !circlePassed;
 
 if (failed) process.exitCode = 1;
