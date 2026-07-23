@@ -151,6 +151,52 @@ dialog::backdrop { background: rgba(21, 31, 24, .38); }
 dialog h2 { font-size: 20px; }
 dialog p { color: var(--muted); line-height: 1.7; font-size: 14px; }
 dialog > button { min-width: 120px; min-height: 40px; border: 0; border-radius: 6px; color: white; background: var(--green); cursor: pointer; }
+.tool-dialog {
+  width: min(900px, calc(100% - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  text-align: left;
+  overflow: hidden;
+}
+.tool-dialog-header { min-height: 72px; padding: 14px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; background: #fff; }
+.tool-dialog-header h2 { font-size: 20px; }
+.tool-view { max-height: calc(100vh - 104px); padding: 20px; overflow-y: auto; }
+.equation-controls { margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.field-label { color: #344139; font-size: 13px; font-weight: 800; }
+#equationVariable { min-width: 88px; height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: 5px; background: white; color: var(--ink); }
+.tool-math-input { display: block; width: 100%; min-height: 88px; margin-top: 8px; padding: 18px; border: 1px solid #b9d2c3; border-radius: 6px; background: #fbfdfc; font-size: 27px; }
+.tool-math-input:focus-within { border-color: var(--green); box-shadow: 0 0 0 3px rgba(24, 121, 78, .1); }
+.tool-math-input::part(menu-toggle), .tool-math-input::part(virtual-keyboard-toggle), .graph-function-row math-field::part(menu-toggle), .graph-function-row math-field::part(virtual-keyboard-toggle) { display: none; }
+.tool-hint { margin: 7px 0 16px; color: var(--muted); font-size: 12px; }
+.tool-primary-button { width: 100%; min-height: 46px; border: 0; border-radius: 6px; background: var(--green); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; cursor: pointer; }
+.tool-primary-button:hover { background: var(--green-dark); }
+.tool-primary-button svg { width: 18px; height: 18px; }
+.tool-result { min-height: 108px; margin-top: 18px; padding: 15px 17px; border-left: 3px solid #d4b552; background: #fbfaf4; }
+.tool-result-label { color: #6f642f; font-size: 12px; font-weight: 800; }
+#equationResult { display: none; width: 100%; margin-top: 10px; padding: 0; border: 0; background: transparent; font-size: 26px; }
+#equationResult.visible { display: block; }
+#equationResultStatus { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
+.graph-tool-view { padding-top: 16px; }
+.graph-input-heading, .graph-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.secondary-button { min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 5px; background: white; color: var(--green-dark); display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; font-weight: 800; }
+.secondary-button:hover { border-color: #89b79d; background: var(--green-soft); }
+.secondary-button svg { width: 16px; height: 16px; }
+.graph-function-list { margin: 10px 0; display: grid; gap: 7px; }
+.graph-function-row { min-height: 48px; display: grid; grid-template-columns: 11px 30px minmax(0, 1fr) 38px; align-items: center; gap: 8px; }
+.graph-swatch { width: 10px; height: 28px; border-radius: 3px; background: var(--graph-color); }
+.graph-y { color: var(--muted); font-size: 13px; font-weight: 700; }
+.graph-function-row math-field { width: 100%; min-width: 0; min-height: 46px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: #fbfdfc; font-size: 20px; }
+.graph-function-row math-field:focus-within { border-color: var(--green); }
+.remove-graph-function { width: 36px; height: 36px; color: #8d4a40; }
+.graph-tool-view > .tool-primary-button { margin-bottom: 12px; }
+.graph-toolbar { min-height: 42px; padding: 0 4px; }
+#graphRange { color: var(--muted); font-size: 12px; }
+.graph-actions { display: flex; gap: 6px; }
+.graph-actions .icon-button { width: 34px; height: 34px; }
+.graph-stage { width: 100%; aspect-ratio: 16 / 8.5; min-height: 280px; max-height: 480px; border: 1px solid var(--line); background: white; overflow: hidden; }
+#functionGraph { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+#functionGraph.dragging { cursor: grabbing; }
+.graph-status { min-height: 18px; margin: 8px 0 0; color: var(--muted); font-size: 12px; }
 .toast { position: fixed; z-index: 40; left: 50%; bottom: 28px; padding: 10px 16px; border-radius: 6px; background: #19251e; color: white; font-size: 13px; opacity: 0; transform: translate(-50%, 12px); pointer-events: none; transition: .2s; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
@@ -188,4 +234,12 @@ dialog > button { min-width: 120px; min-height: 40px; border: 0; border-radius: 
   .structure-keyboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .math-key { height: 41px; }
   .result-area { min-height: 112px; }
+  .tool-dialog { width: calc(100% - 14px); max-height: calc(100vh - 14px); }
+  .tool-dialog-header { min-height: 62px; padding: 10px 13px; }
+  .tool-view { max-height: calc(100vh - 76px); padding: 14px 12px; }
+  .tool-math-input { min-height: 78px; padding: 14px 10px; font-size: 24px; }
+  .graph-function-row { grid-template-columns: 9px 26px minmax(0, 1fr) 34px; gap: 5px; }
+  .graph-function-row math-field { font-size: 18px; }
+  .remove-graph-function { width: 32px; height: 34px; }
+  .graph-stage { min-height: 250px; aspect-ratio: 1.18 / 1; }
 }

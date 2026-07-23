@@ -2,6 +2,8 @@ import { ComputeEngine } from '@cortex-js/compute-engine';
 import { unwrapPlaceholders } from '../src/math-utils.js';
 import { evaluateCalculus } from '../src/symbolic-calculus.js';
 import { evaluateIntervalSet } from '../src/interval-sets.js';
+import { solveEquation } from '../src/equation-solver.js';
+import { compileGraphFunction } from '../src/function-graph.js';
 
 const ce = new ComputeEngine();
 const placeholderCases = [
@@ -61,6 +63,40 @@ for (const [input, expected] of intervalCases) {
   const actual = evaluateIntervalSet(input, ce);
   const passed = actual === expected;
   console.log(`${passed ? 'PASS' : 'FAIL'} ${input} => ${actual}`);
+  failed ||= !passed;
+}
+
+const equationCases = [
+  [String.raw`x^2-5x+6=0`, 'x', ['2', '3']],
+  [String.raw`\frac{1}{2}x+1=3`, 'x', ['4']],
+  [String.raw`y^2+1=0`, 'y', ['-i', 'i']]
+];
+
+for (const [input, variable, expected] of equationCases) {
+  const result = solveEquation(input, variable, ce);
+  const actual = result.solutions.map(solution => solution.plain).sort();
+  const passed = result.kind === 'solutions' && JSON.stringify(actual) === JSON.stringify(expected);
+  console.log(`${passed ? 'PASS' : 'FAIL'} solve ${input} => ${actual.join(', ')}`);
+  failed ||= !passed;
+}
+
+const identity = solveEquation(String.raw`x=x`, 'x', ce);
+const contradiction = solveEquation(String.raw`1=2`, 'x', ce);
+const specialEquationsPassed = identity.kind === 'all' && contradiction.kind === 'none';
+console.log(`${specialEquationsPassed ? 'PASS' : 'FAIL'} solve identities and contradictions`);
+failed ||= !specialEquationsPassed;
+
+const graphCases = [
+  [String.raw`x^2`, 3, 9],
+  [String.raw`\sin(x)`, 0, 0],
+  [String.raw`\frac{1}{x}`, 2, 0.5]
+];
+
+for (const [input, x, expected] of graphCases) {
+  const evaluate = compileGraphFunction(input, ce);
+  const actual = evaluate(x);
+  const passed = Math.abs(actual - expected) < 1e-10;
+  console.log(`${passed ? 'PASS' : 'FAIL'} graph ${input} at ${x} => ${actual}`);
   failed ||= !passed;
 }
 

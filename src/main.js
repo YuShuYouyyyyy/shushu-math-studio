@@ -15,11 +15,18 @@ import {
   Split,
   Sigma,
   LineChart,
-  PanelLeftOpen
+  PanelLeftOpen,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Plus,
+  Trash2
 } from 'lucide';
 import { unwrapPlaceholders } from './math-utils.js';
 import { evaluateCalculus, isCalculusExpression } from './symbolic-calculus.js';
 import { evaluateIntervalSet } from './interval-sets.js';
+import { solveEquation } from './equation-solver.js';
+import { compileGraphFunction, createGraphController, GRAPH_COLORS } from './function-graph.js';
 import './style.css';
 
 const templates = [
@@ -185,10 +192,57 @@ app.innerHTML = `
     <p>接入国内可用的大模型服务后，可识别题目、展示步骤并检查答案。</p>
     <button id="closeAiDialog">知道了</button>
   </dialog>
+
+  <dialog class="tool-dialog" id="toolDialog">
+    <div class="tool-dialog-header">
+      <div><p class="eyebrow">数学工具</p><h2 id="toolDialogTitle">解方程</h2></div>
+      <button class="icon-button" id="closeToolDialog" aria-label="关闭数学工具" title="关闭"><i data-lucide="x"></i></button>
+    </div>
+
+    <section class="tool-view" id="equationToolView">
+      <div class="equation-controls">
+        <label class="field-label" for="equationVariable">求解未知数</label>
+        <select id="equationVariable" aria-label="求解未知数">
+          <option value="x">x</option><option value="y">y</option><option value="z">z</option>
+          <option value="a">a</option><option value="b">b</option><option value="c">c</option>
+        </select>
+      </div>
+      <label class="field-label" for="equationField">方程</label>
+      <math-field class="tool-math-input" id="equationField" aria-label="方程输入框"></math-field>
+      <p class="tool-hint">不写等号时，按表达式等于 0 求解</p>
+      <button class="tool-primary-button" id="solveEquationButton"><i data-lucide="equal"></i><span>开始求解</span></button>
+      <div class="tool-result" id="equationResultArea" aria-live="polite">
+        <span class="tool-result-label">方程的解</span>
+        <math-field id="equationResult" read-only></math-field>
+        <p id="equationResultStatus">等待求解</p>
+      </div>
+    </section>
+
+    <section class="tool-view graph-tool-view" id="graphToolView" hidden>
+      <div class="graph-input-heading">
+        <span class="field-label">函数表达式</span>
+        <button class="secondary-button" id="addGraphFunction"><i data-lucide="plus"></i><span>添加函数</span></button>
+      </div>
+      <div class="graph-function-list" id="graphFunctionList"></div>
+      <button class="tool-primary-button" id="drawGraphButton"><i data-lucide="line-chart"></i><span>绘制函数</span></button>
+      <div class="graph-toolbar">
+        <span id="graphRange">x：-10 到 10</span>
+        <div class="graph-actions">
+          <button class="icon-button" id="graphZoomIn" aria-label="放大图像" title="放大"><i data-lucide="zoom-in"></i></button>
+          <button class="icon-button" id="graphZoomOut" aria-label="缩小图像" title="缩小"><i data-lucide="zoom-out"></i></button>
+          <button class="icon-button" id="graphReset" aria-label="复位图像" title="复位"><i data-lucide="rotate-ccw"></i></button>
+        </div>
+      </div>
+      <div class="graph-stage">
+        <canvas id="functionGraph" aria-label="函数图像，可拖动平移"></canvas>
+      </div>
+      <p class="graph-status" id="graphStatus" aria-live="polite">输入函数后点击绘制，可拖动图像并缩放</p>
+    </section>
+  </dialog>
   <div class="toast" id="toast" role="status"></div>
 `;
 
-createIcons({ icons: { Calculator, Delete, Undo2, Redo2, Copy, Sparkles, Keyboard, History, X, Equal, Split, Sigma, LineChart, PanelLeftOpen } });
+createIcons({ icons: { Calculator, Delete, Undo2, Redo2, Copy, Sparkles, Keyboard, History, X, Equal, Split, Sigma, LineChart, PanelLeftOpen, ZoomIn, ZoomOut, RotateCcw, Plus, Trash2 } });
 
 const ce = new ComputeEngine();
 const mathfield = document.querySelector('#mathField');
@@ -201,15 +255,23 @@ const customKeyboard = document.querySelector('#customKeyboard');
 const toolPanel = document.querySelector('#toolPanel');
 const sideScrim = document.querySelector('#sideScrim');
 const toast = document.querySelector('#toast');
+const toolDialog = document.querySelector('#toolDialog');
+const equationField = document.querySelector('#equationField');
+const equationResult = document.querySelector('#equationResult');
+const graphFunctionList = document.querySelector('#graphFunctionList');
 const history = [];
 let lastResult = '';
 let activeKeyboardLayout = '基础';
+let graphFunctionCount = 0;
 
 mathfield.smartFence = true;
 mathfield.smartMode = true;
 mathfield.defaultMode = 'math';
 mathfield.mathVirtualKeyboardPolicy = 'manual';
 mathfield.menuItems = [];
+equationField.smartFence = true;
+equationField.mathVirtualKeyboardPolicy = 'manual';
+equationField.menuItems = [];
 
 function renderKeyboard(layout = activeKeyboardLayout) {
   activeKeyboardLayout = layout;
@@ -358,6 +420,120 @@ function setToolPanel(open) {
   sideScrim.classList.toggle('visible', open);
 }
 
+function getEditorLatex() {
+  return unwrapPlaceholders(mathfield.getValue('latex-expanded').trim());
+}
+
+function formatRangeValue(value) {
+  if (Math.abs(value) >= 1000 || (Math.abs(value) > 0 && Math.abs(value) < 0.01)) return value.toExponential(1);
+  return Number(value.toFixed(2)).toString();
+}
+
+const graphController = createGraphController(document.querySelector('#functionGraph'), range => {
+  document.querySelector('#graphRange').textContent = `x：${formatRangeValue(range.xMin)} 到 ${formatRangeValue(range.xMax)}`;
+});
+
+function addGraphFunction(value = '') {
+  if (graphFunctionCount >= GRAPH_COLORS.length) {
+    showToast(`最多同时绘制 ${GRAPH_COLORS.length} 条函数`);
+    return;
+  }
+  const id = `graph-function-${Date.now()}-${graphFunctionCount}`;
+  const usedColors = new Set([...graphFunctionList.querySelectorAll('.graph-function-row')].map(row => row.dataset.color));
+  const color = GRAPH_COLORS.find(candidate => !usedColors.has(candidate)) || GRAPH_COLORS[0];
+  const row = document.createElement('div');
+  row.className = 'graph-function-row';
+  row.dataset.color = color;
+  row.innerHTML = `
+    <span class="graph-swatch" style="--graph-color:${color}" aria-hidden="true"></span>
+    <span class="graph-y">y =</span>
+    <math-field id="${id}" aria-label="函数表达式"></math-field>
+    <button class="icon-button remove-graph-function" aria-label="删除这个函数" title="删除"><i data-lucide="trash-2"></i></button>
+  `;
+  graphFunctionList.appendChild(row);
+  const field = row.querySelector('math-field');
+  field.smartFence = true;
+  field.mathVirtualKeyboardPolicy = 'manual';
+  field.menuItems = [];
+  field.value = value;
+  graphFunctionCount += 1;
+  createIcons({ icons: { Trash2 } });
+}
+
+function openTool(name) {
+  const equationView = document.querySelector('#equationToolView');
+  const graphView = document.querySelector('#graphToolView');
+  const currentLatex = getEditorLatex();
+  setToolPanel(false);
+
+  if (name === '解方程') {
+    document.querySelector('#toolDialogTitle').textContent = '解方程';
+    equationView.hidden = false;
+    graphView.hidden = true;
+    if (currentLatex) equationField.value = currentLatex;
+  } else if (name === '函数图') {
+    document.querySelector('#toolDialogTitle').textContent = '函数图像';
+    equationView.hidden = true;
+    graphView.hidden = false;
+    if (graphFunctionCount === 0) addGraphFunction(currentLatex);
+  } else {
+    showToast(`${name}正在开发中`);
+    return;
+  }
+
+  toolDialog.showModal();
+  window.requestAnimationFrame(() => {
+    if (name === '解方程') equationField.focus();
+    else graphController.draw();
+  });
+}
+
+function solveCurrentEquation() {
+  const status = document.querySelector('#equationResultStatus');
+  const variable = document.querySelector('#equationVariable').value;
+  const latex = unwrapPlaceholders(equationField.getValue('latex-expanded').trim());
+  try {
+    const result = solveEquation(latex, variable, ce);
+    let resultLatex;
+    if (result.kind === 'all') {
+      resultLatex = String.raw`${variable}\in\mathbb{R}`;
+      status.textContent = '所有实数都满足这个方程';
+    } else if (result.kind === 'none') {
+      resultLatex = String.raw`\varnothing`;
+      status.textContent = '这个方程没有解';
+    } else {
+      const values = result.solutions.map(solution => solution.latex).join(',');
+      resultLatex = result.solutions.length === 1
+        ? `${variable}=${values}`
+        : String.raw`${variable}\in\left\{${values}\right\}`;
+      status.textContent = `共找到 ${result.solutions.length} 个解`;
+    }
+    equationResult.value = resultLatex;
+    equationResult.classList.add('visible');
+    addHistory(latex.includes('=') ? latex : `${latex}=0`, resultLatex, '');
+  } catch (error) {
+    equationResult.classList.remove('visible');
+    status.textContent = error.message;
+  }
+}
+
+function drawCurrentFunctions() {
+  const rows = [...graphFunctionList.querySelectorAll('.graph-function-row')];
+  const compiled = [];
+  try {
+    rows.forEach(row => {
+      const latex = unwrapPlaceholders(row.querySelector('math-field').getValue('latex-expanded').trim());
+      const evaluate = compileGraphFunction(latex, ce);
+      if (evaluate) compiled.push({ evaluate, color: row.dataset.color });
+    });
+    if (compiled.length === 0) throw new Error('请先输入至少一个函数');
+    graphController.setFunctions(compiled);
+    document.querySelector('#graphStatus').textContent = `已绘制 ${compiled.length} 条函数，可拖动图像并缩放`;
+  } catch (error) {
+    document.querySelector('#graphStatus').textContent = error.message;
+  }
+}
+
 renderKeyboard();
 
 keyboardTabs.addEventListener('click', event => {
@@ -380,7 +556,25 @@ document.querySelector('.keyboard-nav').addEventListener('click', event => {
 
 document.querySelector('.tool-list').addEventListener('click', event => {
   const tool = event.target.closest('[data-tool]');
-  if (tool) showToast(`${tool.dataset.tool}正在开发中`);
+  if (tool) openTool(tool.dataset.tool);
+});
+
+document.querySelector('#closeToolDialog').addEventListener('click', () => toolDialog.close());
+document.querySelector('#solveEquationButton').addEventListener('click', solveCurrentEquation);
+equationField.addEventListener('keydown', event => {
+  if (event.key === 'Enter') { event.preventDefault(); solveCurrentEquation(); }
+});
+document.querySelector('#addGraphFunction').addEventListener('click', () => addGraphFunction());
+document.querySelector('#drawGraphButton').addEventListener('click', drawCurrentFunctions);
+document.querySelector('#graphZoomIn').addEventListener('click', () => graphController.zoomIn());
+document.querySelector('#graphZoomOut').addEventListener('click', () => graphController.zoomOut());
+document.querySelector('#graphReset').addEventListener('click', () => graphController.reset());
+  graphFunctionList.addEventListener('click', event => {
+  const removeButton = event.target.closest('.remove-graph-function');
+  if (!removeButton) return;
+  removeButton.closest('.graph-function-row').remove();
+  graphFunctionCount = graphFunctionList.querySelectorAll('.graph-function-row').length;
+  if (graphFunctionCount === 0) addGraphFunction();
 });
 
 document.querySelector('#openToolPanel').addEventListener('click', () => setToolPanel(true));
