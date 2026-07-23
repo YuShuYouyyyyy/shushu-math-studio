@@ -200,6 +200,16 @@ app.innerHTML = `
       <button class="icon-button" id="closeToolDialog" aria-label="关闭数学工具" title="关闭"><i data-lucide="x"></i></button>
     </div>
 
+    <section class="custom-keyboard tool-keyboard" id="toolKeyboard" aria-label="数学键盘">
+      <div class="keyboard-tabs" id="toolKeyboardTabs" role="tablist"></div>
+      <div class="keyboard-grid" id="toolKeyboardGrid"></div>
+      <div class="keyboard-nav" id="toolKeyboardNav" aria-label="光标操作">
+        <button data-command="moveToPreviousChar" aria-label="光标左移">←</button>
+        <button data-command="moveToNextChar" aria-label="光标右移">→</button>
+        <button data-command="deleteBackward" aria-label="删除">⌫</button>
+      </div>
+    </section>
+
     <section class="tool-view" id="equationToolView">
       <div class="equation-controls">
         <label class="field-label" for="equationVariable">求解未知数</label>
@@ -253,6 +263,8 @@ const resultEmpty = document.querySelector('#resultEmpty');
 const keyboardGrid = document.querySelector('#keyboardGrid');
 const keyboardTabs = document.querySelector('#keyboardTabs');
 const customKeyboard = document.querySelector('#customKeyboard');
+const toolKeyboardGrid = document.querySelector('#toolKeyboardGrid');
+const toolKeyboardTabs = document.querySelector('#toolKeyboardTabs');
 const toolPanel = document.querySelector('#toolPanel');
 const sideScrim = document.querySelector('#sideScrim');
 const toast = document.querySelector('#toast');
@@ -264,6 +276,7 @@ const history = [];
 let lastResult = '';
 let activeKeyboardLayout = '基础';
 let graphFunctionCount = 0;
+let activeMathfield = mathfield;
 
 mathfield.smartFence = true;
 mathfield.smartMode = true;
@@ -298,16 +311,39 @@ function renderKeyboard(layout = activeKeyboardLayout) {
   }
 }
 
+function renderToolKeyboard(layout = activeKeyboardLayout) {
+  toolKeyboardTabs.innerHTML = Object.keys(keyboardLayouts).map(name => `
+    <button class="keyboard-tab ${name === layout ? 'active' : ''}" data-layout="${name}" role="tab" aria-selected="${name === layout}">${name}</button>
+  `).join('');
+  const keys = keyboardLayouts[layout];
+  const renderKey = (key, index) => `
+    <button class="math-key${key.template ? ' structure-key' : ''}" data-key-index="${index}" aria-label="插入 ${key.name || key.text || key.latex}">
+      ${key.text || convertLatexToMarkup(key.latex)}
+      ${key.template ? `<span>${key.name}</span>` : ''}
+    </button>
+  `;
+  if (layout === '基础') {
+    toolKeyboardGrid.className = 'keyboard-grid basic-keyboard-grid';
+    toolKeyboardGrid.innerHTML = `
+      <div class="number-pad">${keys.slice(0, 10).map(renderKey).join('')}</div>
+      <div class="operator-pad">${keys.slice(10).map((key, index) => renderKey(key, index + 10)).join('')}</div>
+    `;
+  } else {
+    toolKeyboardGrid.className = `keyboard-grid${layout === '结构' ? ' structure-keyboard-grid' : ''}`;
+    toolKeyboardGrid.innerHTML = keys.map(renderKey).join('');
+  }
+}
+
 function showToast(message) {
   toast.textContent = message;
   toast.classList.add('show');
   window.setTimeout(() => toast.classList.remove('show'), 1800);
 }
 
-function insertLatex(latex) {
-  mathfield.focus();
-  mathfield.insert(latex, { insertionMode: 'replaceSelection' });
-  if (latex.includes('\\placeholder')) mathfield.executeCommand('moveToNextPlaceholder');
+function insertLatex(latex, target = activeMathfield) {
+  target.focus();
+  target.insert(latex, { insertionMode: 'replaceSelection' });
+  if (latex.includes('\\placeholder')) target.executeCommand('moveToNextPlaceholder');
   window.requestAnimationFrame(updatePromptAppearance);
 }
 
@@ -463,6 +499,7 @@ function addGraphFunction(value = '') {
   field.mathVirtualKeyboardPolicy = 'manual';
   field.menuItems = [];
   field.value = value;
+  field.addEventListener('focusin', () => { activeMathfield = field; });
   graphFunctionCount += 1;
   createIcons({ icons: { Trash2 } });
 }
@@ -483,6 +520,7 @@ function openTool(name) {
 
   if (name === '解方程') {
     setActiveTool(name);
+    activeMathfield = equationField;
     document.querySelector('#toolDialogTitle').textContent = '解方程';
     equationView.hidden = false;
     graphView.hidden = true;
@@ -493,6 +531,8 @@ function openTool(name) {
     equationView.hidden = true;
     graphView.hidden = false;
     if (graphFunctionCount === 0) addGraphFunction(currentLatex);
+    const firstGraphField = graphFunctionList.querySelector('math-field');
+    if (firstGraphField) activeMathfield = firstGraphField;
   } else {
     showToast(`${name}正在开发中`);
     return;
@@ -552,13 +592,27 @@ function drawCurrentFunctions() {
 }
 
 renderKeyboard();
+renderToolKeyboard();
 
 keyboardTabs.addEventListener('click', event => {
   const tab = event.target.closest('[data-layout]');
   if (tab) renderKeyboard(tab.dataset.layout);
 });
 
+toolKeyboardTabs.addEventListener('click', event => {
+  const tab = event.target.closest('[data-layout]');
+  if (tab) {
+    activeKeyboardLayout = tab.dataset.layout;
+    renderToolKeyboard(activeKeyboardLayout);
+  }
+});
+
 keyboardGrid.addEventListener('click', event => {
+  const key = event.target.closest('[data-key-index]');
+  if (key) insertLatex(keyboardLayouts[activeKeyboardLayout][Number(key.dataset.keyIndex)].insert);
+});
+
+toolKeyboardGrid.addEventListener('click', event => {
   const key = event.target.closest('[data-key-index]');
   if (key) insertLatex(keyboardLayouts[activeKeyboardLayout][Number(key.dataset.keyIndex)].insert);
 });
@@ -568,6 +622,14 @@ document.querySelector('.keyboard-nav').addEventListener('click', event => {
   if (button) {
     mathfield.focus();
     mathfield.executeCommand(button.dataset.command);
+  }
+});
+
+document.querySelector('#toolKeyboardNav').addEventListener('click', event => {
+  const button = event.target.closest('[data-command]');
+  if (button) {
+    activeMathfield.focus();
+    activeMathfield.executeCommand(button.dataset.command);
   }
 });
 
@@ -581,6 +643,7 @@ document.querySelector('#solveEquationButton').addEventListener('click', solveCu
 equationField.addEventListener('keydown', event => {
   if (event.key === 'Enter') { event.preventDefault(); solveCurrentEquation(); }
 });
+equationField.addEventListener('focusin', () => { activeMathfield = equationField; });
 document.querySelector('#addGraphFunction').addEventListener('click', () => addGraphFunction());
 document.querySelector('#drawGraphButton').addEventListener('click', drawCurrentFunctions);
 document.querySelector('#graphZoomIn').addEventListener('click', () => graphController.zoomIn());
@@ -630,6 +693,7 @@ mathfield.addEventListener('keydown', event => {
   }
 });
 mathfield.addEventListener('input', () => window.requestAnimationFrame(updatePromptAppearance));
+mathfield.addEventListener('focusin', () => { activeMathfield = mathfield; });
 
 updatePromptAppearance();
 mathfield.focus();
