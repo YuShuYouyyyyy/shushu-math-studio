@@ -23,6 +23,8 @@ function approximateImplicitBounds(evaluate, range) {
   const points = [];
   const columns = 140;
   const rows = 100;
+  let minimumAbsolute = Infinity;
+  let minimumPoint = null;
   for (let row = 0; row < rows; row += 1) {
     const y0 = range.yMin + (range.yMax - range.yMin) * row / rows;
     const y1 = range.yMin + (range.yMax - range.yMin) * (row + 1) / rows;
@@ -31,9 +33,25 @@ function approximateImplicitBounds(evaluate, range) {
       const x1 = range.xMin + (range.xMax - range.xMin) * (column + 1) / columns;
       const values = [evaluate(x0, y0), evaluate(x1, y0), evaluate(x0, y1), evaluate(x1, y1)]
         .filter(Number.isFinite);
+      values.forEach((value, index) => {
+        if (Math.abs(value) < minimumAbsolute) {
+          minimumAbsolute = Math.abs(value);
+          minimumPoint = index === 0 ? [x0, y0] : index === 1 ? [x1, y0] : index === 2 ? [x0, y1] : [x1, y1];
+        }
+      });
       if (values.length && Math.min(...values) <= 0 && Math.max(...values) >= 0) {
         points.push([(x0 + x1) / 2, (y0 + y1) / 2]);
       }
+    }
+  }
+  if (!points.length && minimumPoint) {
+    const step = Math.max((range.xMax - range.xMin) / columns, (range.yMax - range.yMin) / rows);
+    if (minimumAbsolute <= Math.max(1e-6, 4 * step * step)) {
+      const formatPoint = value => Number(value.toPrecision(5)).toString();
+      return {
+        domain: `{${formatPoint(minimumPoint[0])}}（孤立点）`,
+        range: `{${formatPoint(minimumPoint[1])}}（孤立点）`
+      };
     }
   }
   if (!points.length) return null;

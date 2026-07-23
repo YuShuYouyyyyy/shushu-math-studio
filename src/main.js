@@ -244,12 +244,6 @@ app.innerHTML = `
     </section>
 
     <section class="tool-view graph-tool-view" id="graphToolView" hidden>
-      <div class="graph-input-heading">
-        <span class="field-label">函数或方程</span>
-        <button class="secondary-button" id="addGraphFunction"><i data-lucide="plus"></i><span>添加函数</span></button>
-      </div>
-      <div class="graph-function-list" id="graphFunctionList"></div>
-      <button class="tool-primary-button" id="drawGraphButton"><i data-lucide="line-chart"></i><span>绘制函数</span></button>
       <div class="graph-toolbar">
         <span id="graphRange">x：-10 到 10</span>
         <div class="graph-actions">
@@ -263,6 +257,12 @@ app.innerHTML = `
       </div>
       <p class="graph-status" id="graphStatus" aria-live="polite">输入函数后点击绘制，可拖动图像并缩放</p>
       <div class="graph-domain-range" id="graphDomainRange" aria-live="polite">绘图后显示定义域和值域</div>
+      <div class="graph-input-heading">
+        <span class="field-label">函数或方程</span>
+        <button class="secondary-button" id="addGraphFunction"><i data-lucide="plus"></i><span>添加函数</span></button>
+      </div>
+      <div class="graph-function-list" id="graphFunctionList"></div>
+      <button class="tool-primary-button" id="drawGraphButton"><i data-lucide="line-chart"></i><span>绘制函数</span></button>
     </section>
   </section>
   <div class="toast" id="toast" role="status"></div>
@@ -591,7 +591,7 @@ function openTool(name) {
     if (graphFunctionCount === 0) addGraphFunction(currentLatex);
     const firstGraphField = graphFunctionList.querySelector('math-field');
     if (firstGraphField) activeMathfield = firstGraphField;
-    document.querySelector('#graphDomainRange').after(toolKeyboard);
+    document.querySelector('#drawGraphButton').after(toolKeyboard);
   } else {
     showToast(`${name}正在开发中`);
     return;
@@ -662,8 +662,9 @@ function drawCurrentFunctions() {
     if (compiled.length === 0) throw new Error('请先输入至少一个函数');
     currentGraphEntries = compiled;
     graphController.setFunctions(compiled);
+    graphController.reset();
     renderGraphAnalysis();
-    document.querySelector('#graphStatus').textContent = `已绘制 ${compiled.length} 条函数，可拖动图像并缩放`;
+    document.querySelector('#graphStatus').textContent = `已绘制 ${compiled.length} 条曲线，可拖动图像并缩放`;
   } catch (error) {
     document.querySelector('#graphStatus').textContent = error.message;
   }

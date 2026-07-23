@@ -118,4 +118,12 @@ const circlePassed = circle.mode === 'implicit' && Math.abs(circle.evaluate(2, 0
 console.log(`${circlePassed ? 'PASS' : 'FAIL'} implicit circle x^2+y^2=4`);
 failed ||= !circlePassed;
 
+const pointCurve = compileGraphExpression(String.raw`(x+2.2)^2+(y+2)^2=0`, ce);
+const pointAnalysis = analyzeFunction(String.raw`(x+2.2)^2+(y+2)^2=0`, ce, pointCurve.evaluate, {
+  xMin: -10, xMax: 10, yMin: -10, yMax: 10
+}, pointCurve.mode);
+const pointPassed = pointAnalysis.domain.includes('孤立点') && pointAnalysis.range.includes('孤立点');
+console.log(`${pointPassed ? 'PASS' : 'FAIL'} implicit isolated point`);
+failed ||= !pointPassed;
+
 if (failed) process.exitCode = 1;

@@ -186,20 +186,36 @@ export function createGraphController(canvas, onRangeChange = () => {}) {
     const columns = Math.floor(width / spacing) + 1;
     const rows = Math.floor(height / spacing) + 1;
     const values = new Array(columns * rows);
+    let minimumAbsolute = Infinity;
+    let minimumPoint = null;
 
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
         const screenX = column * spacing;
         const screenY = row * spacing;
-        values[row * columns + column] = evaluate(
+        const value = evaluate(
           toWorldX(screenX, width),
           toWorldY(screenY, height)
         );
+        values[row * columns + column] = value;
+        if (Number.isFinite(value) && Math.abs(value) < minimumAbsolute) {
+          minimumAbsolute = Math.abs(value);
+          minimumPoint = { x: screenX, y: screenY };
+        }
       }
     }
 
     const contour = contours().size([columns, rows]).thresholds([0])(values)[0];
-    if (!contour) return;
+    if (!contour || contour.coordinates.length === 0) {
+      const worldStep = spacing * state.unitsPerPixel;
+      if (minimumPoint && minimumAbsolute <= Math.max(1e-6, 4 * worldStep * worldStep)) {
+        context.beginPath();
+        context.arc(minimumPoint.x, minimumPoint.y, 4, 0, Math.PI * 2);
+        context.fillStyle = color;
+        context.fill();
+      }
+      return;
+    }
     context.beginPath();
     contour.coordinates.forEach(polygon => {
       polygon.forEach(ring => {
