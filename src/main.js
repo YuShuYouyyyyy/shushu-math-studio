@@ -366,9 +366,9 @@ function showToast(message) {
 }
 
 function insertLatex(latex, target = activeMathfield) {
+  const insertion = latex.replace(/\\placeholder(?:\[[^\]]+\])?\{\}/g, '#?');
   target.focus();
-  target.insert(latex, { insertionMode: 'replaceSelection' });
-  if (latex.includes('\\placeholder')) target.executeCommand('moveToNextPlaceholder');
+  target.insert(insertion, { insertionMode: 'replaceSelection', selectionMode: 'placeholder' });
   window.requestAnimationFrame(updatePromptAppearance);
 }
 
