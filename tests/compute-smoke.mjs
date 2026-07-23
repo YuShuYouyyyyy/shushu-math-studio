@@ -4,6 +4,8 @@ import { evaluateCalculus } from '../src/symbolic-calculus.js';
 import { evaluateIntervalSet } from '../src/interval-sets.js';
 import { solveEquation } from '../src/equation-solver.js';
 import { compileGraphFunction } from '../src/function-graph.js';
+import { factorExpression } from '../src/factorization.js';
+import { analyzeFunction } from '../src/function-analysis.js';
 
 const ce = new ComputeEngine();
 const placeholderCases = [
@@ -99,5 +101,16 @@ for (const [input, x, expected] of graphCases) {
   console.log(`${passed ? 'PASS' : 'FAIL'} graph ${input} at ${x} => ${actual}`);
   failed ||= !passed;
 }
+
+const factor = factorExpression(String.raw`x^2-5x+6`, ce);
+const factorPassed = factor.latex.includes('x-2') && factor.latex.includes('x-3');
+console.log(`${factorPassed ? 'PASS' : 'FAIL'} factor x^2-5x+6 => ${factor.latex}`);
+failed ||= !factorPassed;
+
+const squareEvaluate = compileGraphFunction(String.raw`x^2`, ce);
+const squareAnalysis = analyzeFunction(String.raw`x^2`, ce, squareEvaluate, { xMin: -5, xMax: 5 });
+const analysisPassed = squareAnalysis.domain === '(-∞, +∞)' && squareAnalysis.range === '[0, +∞)';
+console.log(`${analysisPassed ? 'PASS' : 'FAIL'} analyze x^2 domain/range`);
+failed ||= !analysisPassed;
 
 if (failed) process.exitCode = 1;

@@ -26,6 +26,8 @@ import { unwrapPlaceholders } from './math-utils.js';
 import { evaluateCalculus, isCalculusExpression } from './symbolic-calculus.js';
 import { evaluateIntervalSet } from './interval-sets.js';
 import { solveEquation } from './equation-solver.js';
+import { factorExpression } from './factorization.js';
+import { analyzeFunction } from './function-analysis.js';
 import { compileGraphFunction, createGraphController, GRAPH_COLORS } from './function-graph.js';
 import './style.css';
 
@@ -229,6 +231,18 @@ app.innerHTML = `
       </div>
     </section>
 
+    <section class="tool-view" id="factorToolView" hidden>
+      <label class="field-label" for="factorField">代数表达式</label>
+      <math-field class="tool-math-input" id="factorField" aria-label="因式分解表达式输入框"></math-field>
+      <p class="tool-hint">输入多项式或含参数的代数表达式，不要输入等号</p>
+      <button class="tool-primary-button" id="factorButton"><i data-lucide="sigma"></i><span>开始分解</span></button>
+      <div class="tool-result" id="factorResultArea" aria-live="polite">
+        <span class="tool-result-label">分解结果</span>
+        <math-field id="factorResult" read-only></math-field>
+        <p id="factorResultStatus">等待分解</p>
+      </div>
+    </section>
+
     <section class="tool-view graph-tool-view" id="graphToolView" hidden>
       <div class="graph-input-heading">
         <span class="field-label">函数表达式</span>
@@ -248,6 +262,7 @@ app.innerHTML = `
         <canvas id="functionGraph" aria-label="函数图像，可拖动平移"></canvas>
       </div>
       <p class="graph-status" id="graphStatus" aria-live="polite">输入函数后点击绘制，可拖动图像并缩放</p>
+      <div class="graph-domain-range" id="graphDomainRange" aria-live="polite">绘图后显示定义域和值域</div>
     </section>
   </section>
   <div class="toast" id="toast" role="status"></div>
@@ -273,6 +288,8 @@ const toast = document.querySelector('#toast');
 const toolDialog = document.querySelector('#toolDialog');
 const equationField = document.querySelector('#equationField');
 const equationResult = document.querySelector('#equationResult');
+const factorField = document.querySelector('#factorField');
+const factorResult = document.querySelector('#factorResult');
 const graphFunctionList = document.querySelector('#graphFunctionList');
 const history = [];
 let lastResult = '';
@@ -290,6 +307,9 @@ mathfield.menuItems = [];
 equationField.smartFence = true;
 equationField.mathVirtualKeyboardPolicy = 'manual';
 equationField.menuItems = [];
+factorField.smartFence = true;
+factorField.mathVirtualKeyboardPolicy = 'manual';
+factorField.menuItems = [];
 
 function renderKeyboard(layout = activeKeyboardLayout) {
   activeKeyboardLayout = layout;
@@ -476,9 +496,29 @@ function formatRangeValue(value) {
   return Number(value.toFixed(2)).toString();
 }
 
+let currentGraphRange = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+let currentGraphEntries = [];
+
 const graphController = createGraphController(document.querySelector('#functionGraph'), range => {
-  document.querySelector('#graphRange').textContent = `x：${formatRangeValue(range.xMin)} 到 ${formatRangeValue(range.xMax)}`;
+  currentGraphRange = range;
+  document.querySelector('#graphRange').textContent = `x：${formatRangeValue(range.xMin)} 到 ${formatRangeValue(range.xMax)}　y：${formatRangeValue(range.yMin)} 到 ${formatRangeValue(range.yMax)}`;
+  if (currentGraphEntries.length) renderGraphAnalysis();
 });
+
+function renderGraphAnalysis() {
+  const container = document.querySelector('#graphDomainRange');
+  container.innerHTML = currentGraphEntries.map((entry, index) => {
+    const analysis = analyzeFunction(entry.latex, ce, entry.evaluate, currentGraphRange);
+    return `
+      <div class="graph-analysis-row">
+        <span class="graph-swatch" style="--graph-color:${entry.color}" aria-hidden="true"></span>
+        <strong>函数 ${index + 1}</strong>
+        <span>定义域：${analysis.domain}</span>
+        <span>值域：${analysis.range}</span>
+      </div>
+    `;
+  }).join('');
+}
 
 function addGraphFunction(value = '') {
   if (graphFunctionCount >= GRAPH_COLORS.length) {
@@ -510,6 +550,7 @@ function addGraphFunction(value = '') {
 
 function openTool(name) {
   const equationView = document.querySelector('#equationToolView');
+  const factorView = document.querySelector('#factorToolView');
   const graphView = document.querySelector('#graphToolView');
   const currentLatex = getEditorLatex();
   setToolPanel(false);
@@ -528,18 +569,29 @@ function openTool(name) {
     activeMathfield = equationField;
     document.querySelector('#toolDialogTitle').textContent = '解方程';
     equationView.hidden = false;
+    factorView.hidden = true;
     graphView.hidden = true;
     if (currentLatex) equationField.value = currentLatex;
     document.querySelector('.tool-hint').before(toolKeyboard);
+  } else if (name === '因式分解') {
+    setActiveTool(name);
+    activeMathfield = factorField;
+    document.querySelector('#toolDialogTitle').textContent = '因式分解';
+    equationView.hidden = true;
+    factorView.hidden = false;
+    graphView.hidden = true;
+    if (currentLatex) factorField.value = currentLatex;
+    document.querySelector('#factorToolView .tool-hint').before(toolKeyboard);
   } else if (name === '函数图') {
     setActiveTool(name);
     document.querySelector('#toolDialogTitle').textContent = '函数图像';
     equationView.hidden = true;
+    factorView.hidden = true;
     graphView.hidden = false;
     if (graphFunctionCount === 0) addGraphFunction(currentLatex);
     const firstGraphField = graphFunctionList.querySelector('math-field');
     if (firstGraphField) activeMathfield = firstGraphField;
-    graphFunctionList.after(toolKeyboard);
+    document.querySelector('#graphDomainRange').after(toolKeyboard);
   } else {
     showToast(`${name}正在开发中`);
     return;
@@ -549,6 +601,7 @@ function openTool(name) {
   toolDialog.hidden = false;
   window.requestAnimationFrame(() => {
     if (name === '解方程') equationField.focus();
+    else if (name === '因式分解') factorField.focus();
     else graphController.draw();
   });
 }
@@ -582,6 +635,21 @@ function solveCurrentEquation() {
   }
 }
 
+function factorCurrentExpression() {
+  const status = document.querySelector('#factorResultStatus');
+  const latex = unwrapPlaceholders(factorField.getValue('latex-expanded').trim());
+  try {
+    const result = factorExpression(latex, ce);
+    factorResult.value = result.latex;
+    factorResult.classList.add('visible');
+    status.textContent = '因式分解完成';
+    addHistory(latex, result.latex, '');
+  } catch (error) {
+    factorResult.classList.remove('visible');
+    status.textContent = error.message;
+  }
+}
+
 function drawCurrentFunctions() {
   const rows = [...graphFunctionList.querySelectorAll('.graph-function-row')];
   const compiled = [];
@@ -589,10 +657,12 @@ function drawCurrentFunctions() {
     rows.forEach(row => {
       const latex = unwrapPlaceholders(row.querySelector('math-field').getValue('latex-expanded').trim());
       const evaluate = compileGraphFunction(latex, ce);
-      if (evaluate) compiled.push({ evaluate, color: row.dataset.color });
+      if (evaluate) compiled.push({ evaluate, color: row.dataset.color, latex });
     });
     if (compiled.length === 0) throw new Error('请先输入至少一个函数');
+    currentGraphEntries = compiled;
     graphController.setFunctions(compiled);
+    renderGraphAnalysis();
     document.querySelector('#graphStatus').textContent = `已绘制 ${compiled.length} 条函数，可拖动图像并缩放`;
   } catch (error) {
     document.querySelector('#graphStatus').textContent = error.message;
@@ -652,6 +722,11 @@ equationField.addEventListener('keydown', event => {
   if (event.key === 'Enter') { event.preventDefault(); solveCurrentEquation(); }
 });
 equationField.addEventListener('focusin', () => { activeMathfield = equationField; });
+factorField.addEventListener('focusin', () => { activeMathfield = factorField; });
+document.querySelector('#factorButton').addEventListener('click', factorCurrentExpression);
+factorField.addEventListener('keydown', event => {
+  if (event.key === 'Enter') { event.preventDefault(); factorCurrentExpression(); }
+});
 document.querySelector('#addGraphFunction').addEventListener('click', () => addGraphFunction());
 document.querySelector('#drawGraphButton').addEventListener('click', drawCurrentFunctions);
 document.querySelector('#graphZoomIn').addEventListener('click', () => graphController.zoomIn());
