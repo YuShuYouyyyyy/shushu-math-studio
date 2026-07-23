@@ -117,7 +117,7 @@ h1, h2 { font-size: 20px; }
 .math-key, .keyboard-nav button { height: 43px; min-width: 0; border: 1px solid #d8e1db; border-radius: 5px; background: white; color: #253229; cursor: pointer; display: grid; place-items: center; font-size: 16px; overflow: hidden; }
 .math-key:hover, .keyboard-nav button:hover { color: var(--green-dark); border-color: #89b79d; background: var(--green-soft); }
 .math-key .ML__latex { font-size: 16px; pointer-events: none; }
-.structure-key { height: 76px; grid-template-rows: 1fr auto; padding: 8px 6px 6px; gap: 4px; }
+.structure-key { height: 92px; grid-template-rows: minmax(58px, 1fr) auto; padding: 8px 6px 6px; gap: 4px; }
 .structure-key .ML__latex { font-size: 19px; }
 .structure-key > span { color: var(--muted); font-size: 11px; }
 .keyboard-nav { padding: 0 8px 8px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
@@ -247,6 +247,7 @@ dialog > button { min-width: 120px; min-height: 40px; border: 0; border-radius: 
   .operator-pad { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .structure-keyboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .math-key { height: 41px; }
+  .structure-key { height: 92px; }
   .result-area { min-height: 112px; }
   .tool-dialog { width: calc(100% - 18px); max-height: none; margin: 10px auto 36px; }
   .tool-dialog-header { min-height: 62px; padding: 10px 13px; }

@@ -1,4 +1,5 @@
 import { MathfieldElement, convertLatexToMarkup } from 'mathlive';
+import 'mathlive/static.css';
 import { ComputeEngine } from '@cortex-js/compute-engine';
 import {
   createIcons,
