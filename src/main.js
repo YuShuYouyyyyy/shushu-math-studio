@@ -15,7 +15,7 @@ import {
   Split,
   Sigma,
   LineChart,
-  PanelLeftOpen,
+  PanelRightOpen,
   ZoomIn,
   ZoomOut,
   RotateCcw,
@@ -129,6 +129,7 @@ app.innerHTML = `
         <button class="icon-button" id="closeToolPanel" aria-label="收起数学工具" title="收起"><i data-lucide="x"></i></button>
       </div>
       <div class="tool-list">
+        <button class="tool-button active" data-tool="calculator"><i data-lucide="calculator"></i><span>计算器</span></button>
         <button class="tool-button" data-tool="解方程"><i data-lucide="equal"></i><span>解方程</span></button>
         <button class="tool-button" data-tool="解不等式"><i data-lucide="split"></i><span>解不等式</span></button>
         <button class="tool-button" data-tool="因式分解"><i data-lucide="sigma"></i><span>因式分解</span></button>
@@ -139,8 +140,8 @@ app.innerHTML = `
     <section class="editor-panel" aria-labelledby="editor-title">
       <div class="editor-heading">
         <div class="editor-title-group">
-          <button class="icon-button panel-toggle" id="openToolPanel" aria-label="展开数学工具" title="数学工具"><i data-lucide="panel-left-open"></i></button>
-          <div><p class="eyebrow">表达式</p><h2 id="editor-title">数学输入区</h2></div>
+          <button class="icon-button panel-toggle" id="openToolPanel" aria-label="展开数学工具" title="数学工具"><i data-lucide="panel-right-open"></i></button>
+          <div><p class="eyebrow">数学工具</p><h2 id="editor-title">计算器</h2></div>
         </div>
         <div class="editor-actions">
           <button class="icon-button" id="undoButton" title="撤销" aria-label="撤销"><i data-lucide="undo-2"></i></button>
@@ -242,7 +243,7 @@ app.innerHTML = `
   <div class="toast" id="toast" role="status"></div>
 `;
 
-createIcons({ icons: { Calculator, Delete, Undo2, Redo2, Copy, Sparkles, Keyboard, History, X, Equal, Split, Sigma, LineChart, PanelLeftOpen, ZoomIn, ZoomOut, RotateCcw, Plus, Trash2 } });
+createIcons({ icons: { Calculator, Delete, Undo2, Redo2, Copy, Sparkles, Keyboard, History, X, Equal, Split, Sigma, LineChart, PanelRightOpen, ZoomIn, ZoomOut, RotateCcw, Plus, Trash2 } });
 
 const ce = new ComputeEngine();
 const mathfield = document.querySelector('#mathField');
@@ -420,6 +421,12 @@ function setToolPanel(open) {
   sideScrim.classList.toggle('visible', open);
 }
 
+function setActiveTool(name) {
+  document.querySelectorAll('.tool-button').forEach(button => {
+    button.classList.toggle('active', button.dataset.tool === name);
+  });
+}
+
 function getEditorLatex() {
   return unwrapPlaceholders(mathfield.getValue('latex-expanded').trim());
 }
@@ -466,12 +473,22 @@ function openTool(name) {
   const currentLatex = getEditorLatex();
   setToolPanel(false);
 
+  if (name === 'calculator') {
+    setActiveTool(name);
+    if (toolDialog.open) toolDialog.close();
+    document.querySelector('#editor-title').textContent = '计算器';
+    window.requestAnimationFrame(() => mathfield.focus());
+    return;
+  }
+
   if (name === '解方程') {
+    setActiveTool(name);
     document.querySelector('#toolDialogTitle').textContent = '解方程';
     equationView.hidden = false;
     graphView.hidden = true;
     if (currentLatex) equationField.value = currentLatex;
   } else if (name === '函数图') {
+    setActiveTool(name);
     document.querySelector('#toolDialogTitle').textContent = '函数图像';
     equationView.hidden = true;
     graphView.hidden = false;
